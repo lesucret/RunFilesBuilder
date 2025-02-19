@@ -5,112 +5,242 @@
 # Author: wukongdaily
 # Blog: wkdaily.cpolar.top
 #=================================================
-
-name: Make OpenClash run files 
+name: Make PassWall2 run files
 
 on:
   workflow_dispatch:
+    inputs:
+      package_version:
+        description: '这里是包版本'
+        required: false
+        default: 'packages-24.10'  
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04 
 
     steps:
-      - name: Create OpenClash & openclash directory for git & ipk
-        run: mkdir -p OpenClash openclash-x86 openclash-a53
-        
-      - name: Checkout package branch to OpenClash directory
-        uses: actions/checkout@v4
-        with:
-          repository: vernesong/OpenClash
-          path: OpenClash
-          ref: package
-          
-      - name: Copy latest openclash IPK to openclash directory
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Clone makeself repo
         run: |
-          cp OpenClash/master/*.ipk openclash-x86
-          cp OpenClash/master/*.ipk openclash-a53
-
-      - name: Get version info
-        id: extract_version
-        run: |
-          first_line=$(head -n 1 OpenClash/master/version)
-          echo "version=$first_line" >> $GITHUB_ENV
-
-      - name: Create Meta directory for git
-        run: mkdir Meta
-      
-      - name: Checkout core branch to Meta directory
-        uses: actions/checkout@v4
-        with:
-          repository: vernesong/OpenClash
-          path: Meta
-          ref: core
-      
-      - name: list all cores on core branch
-        run: ls Meta/master/meta
-
-      - name: Copy latest meta core to openclash directory
-        run: |
-          tar -xzvf Meta/master/meta/clash-linux-amd64.tar.gz -C openclash-x86
-          tar -xzvf Meta/master/meta/clash-linux-arm64.tar.gz -C openclash-a53
-          mv openclash-x86/clash openclash-x86/clash_meta
-          mv openclash-a53/clash openclash-a53/clash_meta
-          ls openclash-x86
-          ls openclash-a53
-
-      - name: Create install.sh script save to openclash directory
-        run: |
-          cat << 'EOF' > openclash-x86/install.sh
-          opkg update
-          if [ $? -ne 0 ]; then
-              echo "update failed。"
-              exit 1
-          fi
-          opkg install *.ipk || exit 1
-          mv clash_meta /etc/openclash/core/
-          sleep 10s
-          ifconfig br-lan > /dev/null 2>&1
-          if [ $? -ne 0 ]; then
-              echo "接口错误，重启网络。"
-              /etc/init.d/network restart
-              echo "重启完毕"
-              exit 0
-          fi
-          EOF
-          chmod +x openclash-x86/install.sh
-          cp openclash-x86/install.sh openclash-a53/install.sh
-          chmod +x openclash-a53/install.sh
-
-      - name: Clone makeself repository for self-extracting installer
-        run: | 
           git clone https://github.com/megastep/makeself.git
 
-      
-      - name: move openclash directory to makeself & create run
+      - name: Create directories for x86_64 and a53 and set PACKAGE_VERSION
         run: |
-          mv openclash-x86 makeself/
-          mv openclash-a53 makeself/
-          cd makeself
-          ./makeself.sh openclash-x86/ openclash-x86-64-${{ env.version }}.run "by github action" ./install.sh
-          ./makeself.sh openclash-a53/ openclash-aarch64_cortex-a53-${{ env.version }}.run "by github action" ./install.sh
+          mkdir -p x86_64/depends a53/depends
+          package_version="${{ github.event.inputs.package_version }}"
+          if [ -z "$package_version" ]; then
+            package_version="packages-24.10"
+          fi
+          echo "PACKAGE_VERSION=$package_version" >> $GITHUB_ENV
+         
 
-      - name: Generate new tag & release
-        uses: softprops/action-gh-release@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ env.version }}
-          target_commitish: ${{ github.ref_name }}
-          prerelease: false
-          body: "![Github](https://img.shields.io/badge/OpenClash.run-123456?logo=github&logoColor=fff&labelColor=red&style=for-the-badge) [![Github](https://img.shields.io/badge/国内加速站下载-FC7C0D?logo=github&logoColor=fff&labelColor=000&style=for-the-badge)](https://wkdaily.cpolar.top/archives/1) ![GitHub Downloads (all assets, specific tag)](https://img.shields.io/github/downloads/wukongdaily/RunFilesBuilder/${{ env.version }}/total?style=for-the-badge&labelColor=black&color=%2325c2a0)"
+      - name: Download ipk files for x86_64 and a53
+        run: |
+          echo "Get PACKAGE_VERSION=$PACKAGE_VERSION"
+          
+          FILE_PREFIXES=("luci-app-passwall2" "geoview" "hysteria" "naiveproxy" "shadowsocks-rust-sslocal" "shadowsocks-rust-ssserver" "shadowsocksr-libev-ssr-local" "shadowsocksr-libev-ssr-redir" "shadowsocksr-libev-ssr-server" "simple-obfs" "sing-box" "tcping" "tuic-client" "v2ray-geoip" "v2ray-geosite" "v2ray-plugin" "xray-core")
+          EXCLUDE_PREFIXES=("luci-app-naiveproxy" "simple-obfs-client" "simple-obfs-server")
+          
+          BASE_URL_X86="https://dl.openwrt.ai/$PACKAGE_VERSION/x86_64/kiddin9/"
+          echo "Fetching x86 directory page from $BASE_URL_X86"
+          wget -qO- "$BASE_URL_X86" | \
+          while IFS= read -r LINE; do
+              for PREFIX in "${FILE_PREFIXES[@]}"; do
+                  if [[ "$LINE" == *"$PREFIX"* ]]; then
+                      FILE=$(echo "$LINE" | grep -oP 'href="\K[^"]*')
+                      if [[ -z "$FILE" ]]; then
+                          # echo "No file found in line, skipping"
+                          continue
+                      fi
+                      exclude_file=false
+                      for exclude_prefix in "${EXCLUDE_PREFIXES[@]}"; do
+                          if [[ "$FILE" == $exclude_prefix* ]]; then
+                              exclude_file=true
+                              break
+                          fi
+                      done
+                      if $exclude_file; then
+                          echo "Skip file: $FILE"
+                          continue
+                      fi
+                      FILE_URL="${BASE_URL_X86}${FILE}"
+                      echo "Found file: $FILE_URL"
+                      curl -L --fail "$FILE_URL" -o "x86_64/depends/$(basename $FILE_URL)" -#
+                    fi
+              done
+          done
 
-      - name: Upload run files as release assets
+          BASE_URL_A53="https://dl.openwrt.ai/$PACKAGE_VERSION/aarch64_cortex-a53/kiddin9/"
+          echo "Fetching a53 directory page from $BASE_URL_A53"
+          wget -qO- "$BASE_URL_A53" | \
+          while IFS= read -r LINE; do
+              for PREFIX in "${FILE_PREFIXES[@]}"; do
+                  if [[ "$LINE" == *"$PREFIX"* ]]; then
+                      FILE=$(echo "$LINE" | grep -oP 'href="\K[^"]*')
+                      if [[ -z "$FILE" ]]; then
+                          # echo "No file found in line, skipping"
+                          continue
+                      fi
+                      exclude_file=false
+                      for exclude_prefix in "${EXCLUDE_PREFIXES[@]}"; do
+                          if [[ "$FILE" == $exclude_prefix* ]]; then
+                              exclude_file=true
+                              break
+                          fi
+                      done
+                      if $exclude_file; then
+                          echo "Skip file: $FILE"
+                          continue
+                      fi
+                      FILE_URL="${BASE_URL_A53}${FILE}"
+                      echo "Found file: $FILE_URL"
+                      curl -L --fail "$FILE_URL" -o "a53/depends/$(basename $FILE_URL)" -#
+                  fi
+              done
+          done
+
+      - name: download sing-box for a53 form aarch64_generic dir
+        run: |
+          SINGBOX_PREFIXES=("sing-box")
+          BASE_URL_A53="https://dl.openwrt.ai/packages-24.10/aarch64_generic/kiddin9/"
+          echo "for sing-box Fetching a53 directory page from $BASE_URL_A53"
+          wget -qO- "$BASE_URL_A53" | \
+          while IFS= read -r LINE; do
+              for PREFIX in "${SINGBOX_PREFIXES[@]}"; do
+                  if [[ "$LINE" == *"$PREFIX"* ]]; then
+                      FILE=$(echo "$LINE" | grep -oP 'href="\K[^"]*')
+                      if [[ -z "$FILE" ]]; then
+                          # echo "No file found in line, skipping"
+                          continue
+                      fi
+                      FILE_URL="${BASE_URL_A53}${FILE}"
+                      echo "Found file: $FILE_URL"
+                      curl -L --fail "$FILE_URL" -o "a53/depends/$(basename $FILE_URL)" -#
+                  fi
+              done
+          done
+        
+      - name: mv pw2 to main dir
+        run: |
+          mv x86_64/depends/luci-app-passwall2*.ipk x86_64
+          mv a53/depends/luci-app-passwall2*.ipk a53
+          echo "List main dir ipk files for x86"
+          ls x86_64
+          echo "List main dir ipk files for a53"
+          ls a53
+      
+      - name: downloads libopenssl3 & libudns ipk
+        run: |
+          echo "downloading libopenssl3 ipk"
+          FILE_PREFIXES=("libopenssl3" "libudns")
+          BASE_URL_X86="https://dl.openwrt.ai/$PACKAGE_VERSION/x86_64/base/"
+          wget -qO- "$BASE_URL_X86" | \
+          while IFS= read -r LINE; do
+            for PREFIX in "${FILE_PREFIXES[@]}"; do
+                if [[ "$LINE" == *"$PREFIX"* ]]; then
+                    FILE=$(echo "$LINE" | grep -oP 'href="\K[^"]*')
+                    if [[ -z "$FILE" ]]; then
+                        # echo "No file found in line, skipping"
+                        continue
+                    fi
+                    FILE_URL="${BASE_URL_X86}${FILE}"
+                    echo "Found file: $FILE_URL"
+                    curl -L --fail "$FILE_URL" -o "x86_64/depends/$(basename $FILE_URL)" -#
+                  fi
+            done
+          done
+          BASE_URL_A53="https://dl.openwrt.ai/$PACKAGE_VERSION/aarch64_cortex-a53/base/"
+          wget -qO- "$BASE_URL_A53" | \
+          while IFS= read -r LINE; do
+              for PREFIX in "${FILE_PREFIXES[@]}"; do
+                  if [[ "$LINE" == *"$PREFIX"* ]]; then
+                      FILE=$(echo "$LINE" | grep -oP 'href="\K[^"]*')
+                      if [[ -z "$FILE" ]]; then
+                          # echo "No file found in line, skipping"
+                          continue
+                      fi
+                      FILE_URL="${BASE_URL_A53}${FILE}"
+                      echo "Found file: $FILE_URL"
+                      curl -L --fail "$FILE_URL" -o "a53/depends/$(basename $FILE_URL)" -#
+                    fi
+              done
+          done
+          echo "downloading libudns ipk"
+          BASE_URL_X86="https://dl.openwrt.ai/$PACKAGE_VERSION/x86_64/packages/"
+          wget -qO- "$BASE_URL_X86" | \
+          while IFS= read -r LINE; do
+            for PREFIX in "${FILE_PREFIXES[@]}"; do
+                if [[ "$LINE" == *"$PREFIX"* ]]; then
+                    FILE=$(echo "$LINE" | grep -oP 'href="\K[^"]*')
+                    if [[ -z "$FILE" ]]; then
+                        # echo "No file found in line, skipping"
+                        continue
+                    fi
+                    FILE_URL="${BASE_URL_X86}${FILE}"
+                      echo "Found file: $FILE_URL"
+                      curl -L --fail "$FILE_URL" -o "x86_64/depends/$(basename $FILE_URL)" -#
+                fi
+            done
+          done
+          BASE_URL_A53="https://dl.openwrt.ai/$PACKAGE_VERSION/aarch64_cortex-a53/packages/"
+          wget -qO- "$BASE_URL_A53" | \
+          while IFS= read -r LINE; do
+            for PREFIX in "${FILE_PREFIXES[@]}"; do
+                if [[ "$LINE" == *"$PREFIX"* ]]; then
+                    FILE=$(echo "$LINE" | grep -oP 'href="\K[^"]*')
+                    if [[ -z "$FILE" ]]; then
+                        # echo "No file found in line, skipping"
+                        continue
+                    fi
+                    FILE_URL="${BASE_URL_A53}${FILE}"
+                    echo "Found file: $FILE_URL"
+                    curl -L --fail "$FILE_URL" -o "a53/depends/$(basename $FILE_URL)" -#
+                fi
+            done
+          done
+          
+
+      - name: List depends ipks
+        run: |
+          echo "List x86 depends ipk files"
+          ls -lh x86_64/depends/
+          echo "List a53 depends ipk files"
+          ls -lh a53/depends/
+          
+      
+      - name: Create install.sh 
+        run: |
+            echo -e "#!/bin/sh\n\nopkg update\nif [ \$? -ne 0 ]; then\n    echo \"update failed\"\n    exit 1\nfi\nopkg install depends/*.ipk --force-depends\nopkg install *.ipk --force-depends" > x86_64/install.sh
+            chmod +x x86_64/install.sh
+            cp x86_64/install.sh a53/
+  
+      - name: Create self-extracting archives
+        run: |
+            mv -f x86_64 makeself
+            mv -f a53 makeself
+            cd makeself
+            ipk_file=$(ls x86_64/*.ipk)
+            appversion=$(basename "$ipk_file" | grep -oP '\d+\.\d+\.\d+')
+            echo "APP_VERSION=$appversion" >> $GITHUB_ENV
+            release_name=$(TZ="Asia/Shanghai" date +'%Y-%m-%d %H:%M Build')
+            echo "RELEASE_NAME=$release_name" >> $GITHUB_ENV
+            ./makeself.sh x86_64/ passwall2_x86_64_$appversion.run "by github action" ./install.sh
+            ./makeself.sh a53/ passwall2_aarch64_cortex-a53_$appversion.run "by github action" ./install.sh
+            
+            
+      
+      - name: Upload all .run files to GitHub Release
         uses: softprops/action-gh-release@v2.1.0
         with:
-          tag_name: ${{ env.version }}
-          name: "OpenClash-${{ env.version }}"
+          tag_name: ${{ env.APP_VERSION }}
+          name: "PassWall2-${{ env.APP_VERSION }}"
+          body: "![Github](https://img.shields.io/badge/passwall2.run-123456?logo=github&logoColor=fff&labelColor=AB5ED8&style=for-the-badge) [![Github](https://img.shields.io/badge/国内加速站下载-FC7C0D?logo=github&logoColor=fff&labelColor=000&style=for-the-badge)](https://wkdaily.cpolar.top/archives/1) ![GitHub Downloads (all assets, specific tag)](https://img.shields.io/github/downloads/wukongdaily/RunFilesBuilder/${{ env.APP_VERSION }}/total?style=for-the-badge&labelColor=black&color=%2325c2a0)"
           files: makeself/*.run
           token: ${{ secrets.GITHUB_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+   
