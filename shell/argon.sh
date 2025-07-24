@@ -4,14 +4,13 @@
 declare -A PLATFORMS=(
   ["x86_64"]="https://downloads.immortalwrt.org/releases/24.10.2/packages/x86_64"
   ["aarch64_generic"]="https://downloads.immortalwrt.org/releases/24.10.2/packages/aarch64_generic"
-  ["aarch64_cortex-a53"]="https://downloads.immortalwrt.org/releases/24.10.2/packages/aarch64_cortex-a53"
 )
 
 # 各类包对应的目录
 declare -A PACKAGE_SOURCES=(
-  ["luci-app-dufs"]="luci"
-  ["luci-i18n-dufs-zh-cn"]="luci"
-  ["dufs"]="packages"
+  ["luci-theme-argon"]="luci"
+  ["luci-app-argon-config"]="luci"
+  ["luci-i18n-argon-config"]="luci"
 )
 
 # 当前目录下创建平台输出目录
@@ -41,6 +40,7 @@ for platform in "${!PLATFORMS[@]}"; do
     if [ -n "$FILE" ]; then
       echo "⬇️ 正在下载: $FILE"
       curl -s -L -o "${SAVE_DIR}/${FILE}" "${URL}${FILE}"
+
       # 🚧 如果文件名中含 ~，重命名为 -
       if [[ "$FILE" == *"~"* ]]; then
         NEW_FILE=$(echo "$FILE" | tr '~' '-')
@@ -53,4 +53,4 @@ for platform in "${!PLATFORMS[@]}"; do
   done
 done
 
-echo "✅ 下载完成，文件已分别存入 各自目录中。"
+echo "✅ argon 主题下载完成，文件已分别存入 x86_64/ 与 aarch64_generic/ 目录中。"

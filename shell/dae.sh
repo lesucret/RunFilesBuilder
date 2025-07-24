@@ -9,9 +9,11 @@ declare -A PLATFORMS=(
 
 # 各类包对应的目录
 declare -A PACKAGE_SOURCES=(
-  ["luci-app-dufs"]="luci"
-  ["luci-i18n-dufs-zh-cn"]="luci"
-  ["dufs"]="packages"
+  ["luci-app-dae"]="luci"
+  ["luci-i18n-dae-zh-cn"]="luci"
+  ["dae_"]="packages"
+  ["dae-geoip"]="packages"
+  ["dae-geosite"]="packages"
 )
 
 # 当前目录下创建平台输出目录
@@ -53,4 +55,4 @@ for platform in "${!PLATFORMS[@]}"; do
   done
 done
 
-echo "✅ 下载完成，文件已分别存入 各自目录中。"
+echo "✅ 下载完成，文件已分别存入 x86_64/ aarch64_generic/  aarch64_cortex-a53 目录中。"
