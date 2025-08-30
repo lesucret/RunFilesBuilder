@@ -11,10 +11,11 @@
 ![Github](https://img.shields.io/badge/STORE商店.run-123456?logo=github&logoColor=fff&labelColor=9400D3&style=for-the-badge) 
 ![Github](https://img.shields.io/badge/ARGON主题.run-123456?logo=github&logoColor=fff&labelColor=1E90FF&style=for-the-badge) 
 ![Github](https://img.shields.io/badge/DUFS文件服务器.run-123456?logo=github&logoColor=fff&labelColor=00ae9d&style=for-the-badge)
+![Github](https://img.shields.io/badge/OPENLIST2.run-123456?logo=github&logoColor=000&labelColor=ffff00&style=for-the-badge)
 # RunFilesBuilder 
 <img src="https://img.shields.io/github/downloads/wukongdaily/RunFilesBuilder/total.svg?style=for-the-badge&color=32C955"/>  [![GitHub Release](https://img.shields.io/github/v/release/wukongdaily/RunFilesBuilder?style=for-the-badge&logoColor=green&color=%23E1A8CD)](https://github.com/wukongdaily/RunFilesBuilder/releases)
 
-# [每日构建 DailyBuild] 👇🏻
+# [每日构建 DailyBuild] 👇🏻 [【点此处讨论】](https://github.com/wukongdaily/RunFilesBuilder/discussions/41)
 https://github.com/wkccd/CloudRunFilesBuilder/releases
 
 【[ENGLISH](https://github.com/wukongdaily/RunFilesBuilder/blob/master/README_en.md)】
@@ -65,6 +66,7 @@ wget -qO imm.sh https://cafe.cpolar.top/wkdaily/zero3/raw/branch/main/zero3/imm.
 > > 【引用】https://github.com/nikkinikki-org/OpenWrt-momo<br>
 > > 【引用】https://github.com/AdguardTeam/AdGuardHome/releases/latest<br>
 > > 【引用】https://github.com/sbwml/luci-app-mosdns<br>
+> > 【引用】https://github.com/sbwml/luci-app-openlist2<br>
 > > 【引用】https://downloads.immortalwrt.org
 
 
