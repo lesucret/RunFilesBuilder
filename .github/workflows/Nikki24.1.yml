@@ -79,17 +79,17 @@ jobs:
               fi
             done
             
-            # 动态生成一键安装脚本
+            # 动态生成一键安装脚本 (注意：EOF 必须与 cat 保持对齐，不能有额外缩进)
             cat << 'EOF' > install.sh
-            #!/bin/sh
-            echo "正在更新软件源..."
-            opkg update
-            if [ $? -ne 0 ]; then
-              echo "警告: 软件源更新失败，将尝试强制安装..."
-            fi
-            echo "开始安装 Nikki 插件包..."
-            opkg install *.ipk
-            EOF
+          #!/bin/sh
+          echo "正在更新软件源..."
+          opkg update
+          if [ $? -ne 0 ]; then
+            echo "警告: 软件源更新失败，将尝试强制安装..."
+          fi
+          echo "开始安装 Nikki 插件包..."
+          opkg install *.ipk
+          EOF
             chmod +x install.sh
             
             popd >/dev/null
@@ -111,14 +111,14 @@ jobs:
       - name: Generate Release Notes
         run: |
           touch info.md
-          cat << EOF > info.md
+          cat << 'EOF' > info.md
           ![Github](https://img.shields.io/badge/nikki.run-123456?logo=github&logoColor=fff&labelColor=yellow&style=for-the-badge)
           ![GitHub Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/${{ env.LATEST_TAG }}/total?style=for-the-badge&labelColor=black&color=%2325c2a0)
 
           ### 📦 Nikki 离线安装包生成成功
-          - **源版本 Tag**: \`${{ env.LATEST_TAG }}\`
-          - **适配 OpenWrt**: \`${{ github.event.inputs.openwrt_version }}\`
-          - **包含架构**: \`x86_64\`, \`aarch64_cortex-a53\`
+          - **源版本 Tag**: `${{ env.LATEST_TAG }}`
+          - **适配 OpenWrt**: `${{ github.event.inputs.openwrt_version }}`
+          - **包含架构**: `x86_64`, `aarch64_cortex-a53`
           
           > 此包由 GitHub Actions 自动打包构建。
           EOF
